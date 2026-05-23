@@ -18,7 +18,6 @@ GITHUB_USER = "murod-one"
 GITHUB_REPO = "agricultural-land-control"
 GITHUB_BRANCH = "main"
 
-# Tumanlar ro'yxati: faqat Xonobot
 TUMANLAR = {
     "Xonobot": "xonobod",
 }
@@ -199,35 +198,43 @@ with col_map:
     center = centroid(features[0])
     st.caption(f"Xarita markazi: {center[0]:.4f}, {center[1]:.4f} | Dalar soni: {len(features)}")
 
-    # Xarita yaratish
+    # === GOOGLE SATELLITE XARITA ===
     m = folium.Map(
         location=center,
         zoom_start=13,
-        tiles="OpenStreetMap",
-        control_scale=True,
+        tiles=None,  # Asosiy tile ni o'zimiz qo'shamiz
     )
 
-    # Sun'iy yo'ldosh qatlami
+    # Google Satellite (asosiy)
     folium.TileLayer(
-        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        attr="Esri",
-        name="Sun'iy yo'ldosh",
+        tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        attr="Google",
+        name="Google Satellite",
         overlay=False,
         control=True,
     ).add_to(m)
 
-    # Ko'cha xaritasi qatlami (asosiy)
+    # Google Yo'l xaritasi (muqobil)
+    folium.TileLayer(
+        tiles="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+        attr="Google",
+        name="Google Xarita",
+        overlay=False,
+        control=True,
+    ).add_to(m)
+
+    # OpenStreetMap (zaxira)
     folium.TileLayer(
         tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        name="Xarita",
+        attr='OpenStreetMap',
+        name="OpenStreetMap",
         overlay=False,
         control=True,
     ).add_to(m)
 
     folium.LayerControl(position="topright").add_to(m)
 
-    # Polygonlarni chizish
+    # === GEOJSON POLYGONLAR ===
     for feat in features:
         did   = dala_id(feat)
         nom   = dala_nom(feat)
@@ -263,7 +270,7 @@ with col_map:
             popup=folium.Popup(popup_html, max_width=220),
         ).add_to(m)
 
-    # Xaritani ko'rsatish (kritik qism)
+    # Xaritani ko'rsatish
     map_data = st_folium(
         m,
         width=700,
