@@ -34,44 +34,40 @@ EKIN_RANGLAR = {
 
 # ── Session state ───────────────────────────────────────────────────
 if "belgilangan" not in st.session_state:
-    st.session_state.belgilangan = {}   # {dala_id: {nom, gektar, ekin}}
+    st.session_state.belgilangan = {}
 if "tanlangan_dala" not in st.session_state:
     st.session_state.tanlangan_dala = None
-if "geojson_cache" not in st.session_state:
-    st.session_state.geojson_cache = {}
 
 # ── Yordamchi funksiyalar ───────────────────────────────────────────
 def github_raw_url(fayl_nomi: str) -> str:
-    return (
-        f"https://raw.githubusercontent.com/"
-        f"{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{fayl_nomi}.geojson"
-    )
+    return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{fayl_nomi}.geojson"
 
 @st.cache_data(ttl=300, show_spinner=False)
 def geojson_yukla(tuman_kodi: str):
     url = github_raw_url(tuman_kodi)
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=15)
         r.raise_for_status()
         return r.json()
     except Exception as e:
+        st.error(f"Yuklash xatosi: {e}")
         return None
 
 def dala_id(feature):
     props = feature.get("properties", {})
-    return props.get("id") or props.get("ID") or props.get("fid") or str(id(feature))
+    return str(props.get("id") or props.get("ID") or props.get("fid") or id(feature))
 
 def dala_nom(feature):
     props = feature.get("properties", {})
     for key in ["nom", "name", "NAME", "NOM", "dala_nom", "field_name"]:
-        if props.get(key):
+        if key in props and props[key]:
             return str(props[key])
     return "Nomsiz dala"
 
 def dala_gektar(feature):
     props = feature.get("properties", {})
     for key in ["gektar", "ha", "HA", "area", "AREA", "maydoni"]:
-        if props.get(key) is not None:
+        if key in props and props[key] is not None:
             try:
                 return float(props[key])
             except:
@@ -138,16 +134,10 @@ with st.sidebar:
 """, unsafe_allow_html=True)
     st.divider()
 
-    tuman_nom = st.selectbox(
-        "Tuman tanlang",
-        options=list(TUMANLAR.keys()),
-        index=0,
-    )
+    tuman_nom = st.selectbox("Tuman tanlang", options=list(TUMANLAR.keys()), index=0)
     tuman_kodi = TUMANLAR[tuman_nom]
-
     st.divider()
 
-    # Belgilangan dalalar statistikasi
     belg = st.session_state.belgilangan
     jami = len(belg)
     paxta_soni  = sum(1 for v in belg.values() if v["ekin"] == "Paxta")
@@ -159,22 +149,19 @@ with st.sidebar:
     col2.metric("Paxta", paxta_soni)
     col1.metric("Bug'doy", bugdoy_soni)
     col2.metric("Shudgor", shudgor_soni)
-
     st.divider()
 
-    # Legend
     st.markdown("**Kalit**")
     for ekin, rang in EKIN_RANGLAR.items():
+        label = ekin or "Belgilanmagan"
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0">'
             f'<div style="width:14px;height:14px;background:{rang};border-radius:3px"></div>'
-            f'<span style="font-size:13px">{ekin or "Belgilanmagan"}</span></div>',
+            f'<span style="font-size:13px">{label}</span></div>',
             unsafe_allow_html=True,
         )
-
     st.divider()
 
-    # Excel download
     excel_data = excel_yuklab_olish()
     if excel_data:
         st.download_button(
@@ -201,10 +188,7 @@ with col_map:
         gj = geojson_yukla(tuman_kodi)
 
     if gj is None:
-        st.error(
-            f"❌ **{tuman_nom}** uchun GeoJSON topilmadi.\n\n"
-            f"Iltimos, `{tuman_kodi}.geojson` fayli GitHub repozitoriyangizda mavjudligini tekshiring."
-        )
+        st.error(f"❌ **{tuman_nom}** uchun GeoJSON topilmadi.\n\nIltimos, `{tuman_kodi}.geojson` fayli GitHub repozitoriyangizda mavjudligini tekshiring.")
         st.stop()
 
     features = gj.get("features", [])
@@ -213,26 +197,35 @@ with col_map:
         st.stop()
 
     center = centroid(features[0])
+    st.caption(f"Xarita markazi: {center[0]:.4f}, {center[1]:.4f} | Dalar soni: {len(features)}")
 
+    # Xarita yaratish
     m = folium.Map(
         location=center,
         zoom_start=13,
         tiles="OpenStreetMap",
+        control_scale=True,
     )
 
+    # Sun'iy yo'ldosh qatlami
     folium.TileLayer(
         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         attr="Esri",
         name="Sun'iy yo'ldosh",
+        overlay=False,
+        control=True,
     ).add_to(m)
-    folium.TileLayer("OpenStreetMap", name="Xarita").add_to(m)
-    folium.LayerControl().add_to(m)
 
-    folium.plugins.LocateControl(
-        auto_start=True,
-        fly_to=False,
-        strings={"title": "Mening joylashuvim", "popup": "Siz shu yerdasiz"},
+    # Ko'cha xaritasi qatlami (asosiy)
+    folium.TileLayer(
+        tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        name="Xarita",
+        overlay=False,
+        control=True,
     ).add_to(m)
+
+    folium.LayerControl(position="topright").add_to(m)
 
     # Polygonlarni chizish
     for feat in features:
@@ -270,25 +263,36 @@ with col_map:
             popup=folium.Popup(popup_html, max_width=220),
         ).add_to(m)
 
-    map_data = st_folium(m, width="100%", height=550, returned_objects=["last_object_clicked"])
+    # Xaritani ko'rsatish (kritik qism)
+    map_data = st_folium(
+        m,
+        width=700,
+        height=550,
+        returned_objects=["last_object_clicked"],
+        key="xonobot_map",
+    )
 
+    # Bosilgan polygonni aniqlash
     clicked = map_data.get("last_object_clicked")
     if clicked:
         lat, lon = clicked.get("lat"), clicked.get("lng")
         if lat and lon:
-            from shapely.geometry import Point, shape
-            pt = Point(lon, lat)
-            for feat in features:
-                try:
-                    if shape(feat["geometry"]).contains(pt):
-                        st.session_state.tanlangan_dala = dala_id(feat)
-                        break
-                except:
-                    pass
+            try:
+                from shapely.geometry import Point, shape
+                pt = Point(lon, lat)
+                for feat in features:
+                    try:
+                        if shape(feat["geometry"]).contains(pt):
+                            st.session_state.tanlangan_dala = dala_id(feat)
+                            st.rerun()
+                            break
+                    except:
+                        pass
+            except Exception as e:
+                st.error(f"Tanlash xatosi: {e}")
 
 with col_panel:
     st.markdown("### Dala ma'lumoti")
-
     td = st.session_state.tanlangan_dala
 
     if td is None:
@@ -310,7 +314,6 @@ with col_panel:
                 st.success(f"✅ Belgilangan: **{mavjud_ekin}**")
 
             st.markdown("**Ekin turini tanlang:**")
-
             for ekin in EKIN_TURLARI:
                 rang_map = {"Paxta": "🟡", "Bug'doy": "🟢", "Shudgor": "🔵"}
                 if st.button(f"{rang_map[ekin]} {ekin}", key=f"ekin_{ekin}_{td}"):
@@ -334,9 +337,5 @@ with col_panel:
         st.markdown("**Belgilangan dalalar**")
         rows = []
         for did, v in st.session_state.belgilangan.items():
-            rows.append({
-                "Dala": v["nom"],
-                "Ga": v["gektar"],
-                "Ekin": v["ekin"],
-            })
+            rows.append({"Dala": v["nom"], "Ga": v["gektar"], "Ekin": v["ekin"]})
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
