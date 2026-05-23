@@ -18,18 +18,9 @@ GITHUB_USER = "YOUR_USERNAME"        # o'zgartiring
 GITHUB_REPO = "YOUR_REPO"           # o'zgartiring
 GITHUB_BRANCH = "main"
 
-# Tumanlar ro'yxati: ko'rsatiladigan nom → GitHub fayl nomi
+# Tumanlar ro'yxati: faqat Xonobot
 TUMANLAR = {
-    "Chirchiq": "chirchiq",
-    "Angren": "angren",
-    "Ohangaron": "ohangaron",
-    "Parkent": "parkent",
-    "Bo'stonliq": "bostonliq",
-    "Qibray": "qibray",
-    "Yuqorichirchiq": "yuqorichirchiq",
-    "O'rtachirchiq": "ortachirchiq",
-    "Quyi Chirchiq": "quyichirchiq",
-    "Xonobot": "xonobot",
+    "Xonobot": "xonobod",
 }
 
 EKIN_TURLARI = ["Paxta", "Bug'doy", "Shudgor"]
