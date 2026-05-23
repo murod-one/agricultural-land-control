@@ -14,8 +14,8 @@ st.set_page_config(
 )
 
 # ── GitHub sozlamalari ──────────────────────────────────────────────
-GITHUB_USER = "YOUR_USERNAME"        # o'zgartiring
-GITHUB_REPO = "YOUR_REPO"           # o'zgartiring
+GITHUB_USER = "murod-one"
+GITHUB_REPO = "agricultural-land-control"
 GITHUB_BRANCH = "main"
 
 # Tumanlar ro'yxati: faqat Xonobot
